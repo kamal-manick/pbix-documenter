@@ -136,7 +136,7 @@ streamlit run src/app.py
 To explore the core pattern against a real PBIX file without running the full app, use the notebook:
 
 ```bash
-jupyter notebook notebooks/quickstart_real_pbix.ipynb
+jupyter notebook notebooks/quickstart.ipynb
 ```
 
 This downloads a sample PBIX file from Microsoft's public repository and runs the full documentation pipeline headlessly. See [notebooks/](notebooks/) for details.
