@@ -14,59 +14,161 @@ The **export layer** takes the single canonical Markdown string produced by the 
 
 ## Data Flow Walkthrough
 
+```mermaid
+flowchart LR
+    subgraph INPUT["Input"]
+        PBIX[".pbix file\n(ZIP archive)"]
+        CATF["Catalog file\n(CSV / Excel)"]
+    end
+
+    subgraph PARSE["Parse"]
+        PBIXRAY["pbixray\nPBIXRay(path)"]
+        TABLES["tables: list[str]"]
+        SCHEMA["schema: DataFrame\nColumnName, Type"]
+        DAX_COL["dax_columns: DataFrame\nTableName, ColumnName, Expression"]
+        DAX_M["dax_measures: DataFrame\nTableName, Name, Expression"]
+        PQ["power_query: DataFrame\nTableName, Expression"]
+        RELS["relationships: DataFrame\nFrom/To Table+Column,\nCardinality, Filter"]
+        PARAMS["m_parameters: DataFrame\nParameterName, Expression"]
+    end
+
+    subgraph ENRICH["Enrich"]
+        LOOKUP["FieldDefinitionCatalog\n.lookup(field_name)"]
+        SCHEMA_E["schema + Definition column"]
+        LLM["Ollama gemma3:1b\ntemperature=0"]
+        EXPLAIN["Plain-English\nexplanation string"]
+    end
+
+    subgraph GENERATE["Generate Markdown"]
+        MD["Canonical Markdown string\n# Model Name\n## Table: ...\n#### DAX Measures\n..."]
+    end
+
+    subgraph EXPORT["Export"]
+        RAW["Download as .md"]
+        HTML["Convert to HTML\n+ CSS styling"]
+        WORD["Download as .doc\n(HTML-MIME)"]
+        PDF["Open print window\nwindow.print()"]
+    end
+
+    PBIX --> PBIXRAY
+    PBIXRAY --> TABLES & SCHEMA & DAX_COL & DAX_M & PQ & RELS & PARAMS
+
+    CATF --> LOOKUP
+    SCHEMA --> LOOKUP
+    LOOKUP --> SCHEMA_E
+
+    DAX_COL & DAX_M & PQ --> LLM
+    LLM --> EXPLAIN
+
+    TABLES & SCHEMA_E & DAX_COL & DAX_M & PQ & RELS & PARAMS & EXPLAIN --> MD
+
+    MD --> RAW
+    MD --> HTML --> WORD
+    HTML --> PDF
 ```
+
+The flow above maps directly to the execution sequence in `generate()`:
+
 1. User uploads a .pbix file via the Streamlit sidebar.
 
-2. app.py writes the file to a local temp directory and instantiates
-   PBIDocumentGenerator with the file path and callback functions.
+2. `app.py` writes the file to a local temp directory and instantiates `PBIDocumentGenerator` with the file path and callback functions.
 
-3. PBIDocumentGenerator.__init__:
-   - Loads the PBIX model via PBIXRay(pbix_path)
+3. `PBIDocumentGenerator.__init__`:
+   - Loads the PBIX model via `PBIXRay(pbix_path)`
    - Initialises the Ollama LLM client (gemma3:1b, temperature=0)
    - Stores callback references for progress, scratch, and stream output
 
-4. PBIDocumentGenerator.generate() is called:
-   a. count_components() -- counts total DAX columns + DAX measures +
-      Power Query steps to establish the progress denominator.
-   b. FieldDefinitionCatalog.load() -- reads the catalog file and returns
-      a lookup function keyed on column name.
-   c. Schema enrichment -- applies the lookup function to every row of
-      the full schema DataFrame, precomputing all definitions upfront.
-   d. For each table in the model:
-      - M Query: emits fenced code block, calls explain() if enabled
-      - Relationships: emits a Markdown table of all related edges
-      - Schema fields: emits a table with column name, type, definition
-      - Calculated columns: emits fenced DAX block, calls explain()
-      - DAX measures: emits fenced DAX block, calls explain()
-   e. explain() streams LLM tokens to the UI via stream_callback,
-      normalises smart quotes in the response, and returns the full
-      explanation string to be appended to the document.
+4. `PBIDocumentGenerator.generate()` is called:
+   - `count_components()` -- counts total DAX columns + DAX measures + Power Query steps to establish the progress denominator
+   - `FieldDefinitionCatalog.load()` -- reads the catalog file and returns a lookup function keyed on column name
+   - Schema enrichment -- applies the lookup function to every row of the full schema DataFrame, precomputing all definitions upfront
+   - For each table in the model: emits M Query, Relationships, Schema fields, Calculated Columns, and DAX Measures as fenced Markdown blocks, calling `_explain()` for each expression if enabled
+   - `_explain()` streams LLM tokens to the UI via `stream_callback`, normalises smart quotes in the response, and returns the full explanation string
 
-5. generate() returns a single Markdown string (mdata).
+5. `generate()` returns a single Markdown string (`mdata`).
 
-6. app.py stores mdata in session state and renders it via st.markdown().
+6. `app.py` stores `mdata` in session state and renders it via `st.markdown()`.
 
-7. MarkdownExporter is instantiated with mdata and the model name.
+7. `MarkdownExporter` is instantiated with `mdata` and the model name.
 
 8. On export button click:
-   - Markdown: browser_download(mdata, filename, "text/markdown")
-   - HTML: markdown_to_html(mdata) then browser_download()
-   - Word: same HTML content, MIME type "application/msword"
-   - PDF: injects HTML + JS into an st.components iframe;
-          JS opens a print window and triggers window.print()
-```
+   - Markdown: `browser_download(mdata, filename, "text/markdown")`
+   - HTML: `markdown_to_html(mdata)` then `browser_download()`
+   - Word: same HTML content, MIME type `"application/msword"`
+   - PDF: injects HTML + JS into an `st.components` iframe; JS opens a print window and triggers `window.print()`
 
 ---
 
 ## Component Interface Contracts
 
+```mermaid
+graph TD
+    subgraph UI["Streamlit UI (app.py)"]
+        UP[File Uploader]
+        CB[Checkbox: Enable LLM]
+        BTN[Generate Button]
+        PROG[Progress Bar]
+        STRM[Stream Output]
+        PREV[Documentation Preview]
+        EXP[Export Radio + Button]
+    end
+
+    subgraph GEN["Document Generator (doc_generator.py)"]
+        INIT[__init__]
+        COUNT[count_components]
+        CATALOG[FieldDefinitionCatalog]
+        EXPLAIN[explain]
+        GENERATE[generate]
+    end
+
+    subgraph EXPORT["Exporter (doc_exporter.py)"]
+        M2H[markdown_to_html]
+        DL[browser_download]
+        PDF[PDF print JS]
+    end
+
+    subgraph EXT["External"]
+        PBIXRAY[pbixray]
+        OLLAMA[Ollama LLM]
+        CATFILE[Catalog File CSV/Excel]
+    end
+
+    UP -->|pbix file path| INIT
+    CB -->|enable_explanation flag| INIT
+    BTN -->|triggers| GENERATE
+
+    INIT --> PBIXRAY
+    INIT --> OLLAMA
+
+    GENERATE --> COUNT
+    GENERATE --> CATALOG
+    CATALOG --> CATFILE
+    GENERATE --> EXPLAIN
+    EXPLAIN --> OLLAMA
+    EXPLAIN -->|stream tokens| STRM
+    EXPLAIN -->|progress 0-1| PROG
+
+    GENERATE -->|markdown string| PREV
+    GENERATE -->|markdown string| EXPORT
+
+    EXP -->|format selection| M2H
+    M2H -->|html string| DL
+    M2H -->|html string| PDF
+    DL -->|Base64 JS inject| UI
+    PDF -->|print JS inject| UI
+```
+
 ### PBIDocumentGenerator
 
 ```python
 PBIDocumentGenerator(
-    pbix_path: str,              # Path to the .pbix file on disk
-    enable_explanation: bool,    # Whether to call Ollama for DAX/M explanations
-    scratch_callback: Callable[[str], None],     # Shows current item label in UI
+    pbix_path: str,                          # Path to the .pbix file on disk
+    enable_explanation: bool,                # Whether to call Ollama for DAX/M explanations
+    catalog_path: str | None,                # Path to field definition catalog (CSV or Excel)
+    catalog_primary_key: str,                # Column to match against model field names
+    catalog_fallback_key: str,               # Secondary match column (e.g. source system name)
+    catalog_definition_columns: list[str],   # Ordered list of definition columns to try
+    scratch_callback: Callable[[str], None], # Shows current item label in UI
     clear_scratch_callback: Callable[[], None],  # Clears the label
     progress_callback: Callable[[float], None],  # Updates progress bar (0.0-1.0)
     stream_callback: Callable[[Generator], None] # Consumes LLM token stream
@@ -79,13 +181,13 @@ PBIDocumentGenerator(
 
 ```python
 FieldDefinitionCatalog(
-    catalog_path: str,           # Path to CSV or Excel catalog file
-    primary_key_column: str,     # Column to match against model field names
-    fallback_key_column: str,    # Secondary match column (e.g. source system name)
+    catalog_path: str,            # Path to CSV or Excel catalog file
+    primary_key_column: str,      # Column to match against model field names
+    fallback_key_column: str,     # Secondary match column (e.g. source system name)
     definition_columns: list[str] # Ordered list of definition columns to try
 )
 
-.lookup(field_name: str) -> str  # Returns first non-empty definition found, or ""
+.load() -> Callable[[str], str]  # Returns memoized lookup: field_name -> definition string
 ```
 
 ### MarkdownExporter
@@ -111,7 +213,7 @@ MarkdownExporter(
 
 **Concurrency:** Streamlit's default server handles one session per browser tab. The temp directory approach (writing the PBIX to disk before parsing) creates a potential collision if two users upload files simultaneously with the same filename. A production deployment should namespace temp files by session ID.
 
-**LLM reliability:** If Ollama is not running, `explain()` will raise a connection error. The recommended production pattern is to wrap the LLM call in a try/except at the `_explain` method level, log the failure, and return an empty string -- preserving the rest of the document and giving the user a clear error message rather than a hard stop.
+**LLM reliability:** If Ollama is not running, `_explain()` will raise a connection error. The recommended production pattern is to wrap the LLM call in a try/except at the `_explain` method level, log the failure, and return an empty string -- preserving the rest of the document and giving the user a clear error message rather than a hard stop.
 
 **Export fidelity:** The Word export uses HTML-MIME rather than the native `.docx` format. This works in most versions of Microsoft Word but may produce rendering differences. The `python-docx` library was evaluated as a more faithful alternative but added significant complexity for marginal gain given stakeholder usage patterns.
 
