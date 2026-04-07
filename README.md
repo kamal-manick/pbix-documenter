@@ -2,6 +2,8 @@
 
 A self-serve Streamlit app that auto-generates documentation for Power BI semantic models (.pbix files). Extracts tables, DAX measures, Power Query scripts, and relationships, with optional local LLM inference via Ollama for plain-English code explanations. Exports to Markdown, HTML, Word, and PDF.
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 ---
 
 ## About This Repository
