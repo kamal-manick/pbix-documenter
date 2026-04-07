@@ -1,0 +1,7 @@
+streamlit
+pbixray
+langchain
+langchain-ollama
+markdown2
+pandas
+openpyxl

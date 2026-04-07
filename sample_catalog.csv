@@ -1,0 +1,15 @@
+pbi_column_name,source_column_name,business_definition,technical_definition,tooltip_definition
+CustomerID,CUSTOMER_ID,Unique identifier for each customer record.,Primary key integer from the CRM source table.,Unique customer ID
+CustomerName,CUSTOMER_NAME,Full legal name of the customer.,VARCHAR(255) from CRM contacts table.,Customer full name
+OrderDate,ORDER_DATE,Date the order was placed by the customer.,DATE type stored in UTC in the orders source table.,Date order was placed
+OrderAmount,ORDER_AMOUNT,Total value of the order in the reporting currency.,DECIMAL(18,2) converted from source currency at daily exchange rate.,Order total value
+ProductCategory,PRODUCT_CATEGORY,High-level grouping of products for reporting purposes.,VARCHAR(100) from the product dimension table.,Product category
+RegionName,REGION_NAME,Geographic region assigned to the customer account.,Derived from the territory mapping table using the account postal code.,Geographic region
+SalesRepID,SALES_REP_ID,Identifier of the sales representative responsible for the account.,Foreign key to the employees dimension table.,Sales rep ID
+SalesRepName,SALES_REP_NAME,Full name of the assigned sales representative.,Joined from employees dimension using SalesRepID.,Sales representative name
+FiscalYear,FISCAL_YEAR,Fiscal year in which the transaction was recorded.,Derived as calendar year adjusted for a fiscal year start of February.,Fiscal year
+FiscalQuarter,FISCAL_QUARTER,Fiscal quarter (Q1-Q4) within the fiscal year.,Derived from fiscal year date logic applied to OrderDate.,Fiscal quarter
+IsActive,IS_ACTIVE,Indicates whether the customer account is currently active.,Boolean flag set by the CRM account status field.,Active account flag
+ContractValue,CONTRACT_VALUE,Total contracted annual value of the customer agreement.,DECIMAL(18,2) from the contracts source table converted to reporting currency.,Annual contract value
+ChurnDate,CHURN_DATE,Date on which the customer account was marked as churned.,DATE field populated by the CRM churn workflow when account status changes.,Date account churned
+SegmentName,SEGMENT_NAME,Customer segment classification used for reporting and targeting.,VARCHAR(50) derived from the segmentation model output table.,Customer segment

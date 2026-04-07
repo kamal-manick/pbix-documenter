@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Streamlit temp working directory
+temp/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/sample_output.html
+notebooks/sample_documentation.html
+notebooks/sample_documentation.md
+notebooks/sample.pbix
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Uploaded PBIX files (never commit)
+*.pbix
