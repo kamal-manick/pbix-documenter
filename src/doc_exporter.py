@@ -178,7 +178,7 @@ class MarkdownExporter:
         }});
         </script>
         """
-        st.components.v1.html(js, height=100)
+        st.iframe(js, height=100)
 
     # ------------------------------------------------------------------
     # Public API
@@ -229,4 +229,4 @@ class MarkdownExporter:
             </script>
             """
             with pdf_helper:
-                st.components.v1.html(pdf_js, height=0)
+                st.iframe(pdf_js, height=0)
