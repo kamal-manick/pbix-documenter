@@ -134,7 +134,8 @@ class PBIDocumentGenerator:
 
     #: Name of the local Ollama model used for code explanations.
     #: Any model available in your Ollama installation can be substituted here.
-    LLM_MODEL = "gemma3:1b"
+    # LLM_MODEL = "gemma3:1b"
+    LLM_MODEL = "LiquidAI/lfm2.5-1.2b-instruct"
 
     def __init__(
         self,
